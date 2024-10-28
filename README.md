@@ -1,2 +1,2 @@
 # TheOneWhoIsABot
-My Twitch Bot
+This is what i use for my twitch bot. I made it myself. Watched a lot of tutorials and learned a lot of things getting it done. Chatters from my stream made a lot of recommendations. I don't know if I really want anyone else using it cause I'm proud of the effort I put in. But in the end I've put it out there publicly and don't really understand liscencing or copyright or creative commons or idek what would apply to this. Ig take inspiration and stuff and use it as an example if you want to start doing your own ig. But at least remove my bear stuff? cause... at that point wtf.
