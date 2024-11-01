@@ -5,10 +5,10 @@ from config.secrets import TWITCH_TOKEN, CLIENT_ID, CLIENT_SECRET, CHANNELS
 os.system('cls')
 
 # users not to show in chat
-BLACKLIST = ['FILL THIS']
+BLACKLIST = ['theonewhoisabot', 'theonewhotookyourtoast']
 
 # what your points symbol is
-POINTS = 'FILL THIS'
+POINTS = '🍞'
 
 # time variables
 HOUR, HALF_HOUR, QUARTER_HOUR = 3600, 1800, 900
@@ -38,6 +38,11 @@ DEFAULT_USER_DATA = {
         'discord': False,
         'stats': {'STR':10,'DEX':10,'CON':10,'INT':10,'WIS':10,'CHA':10},
         'timers': {}
+}
+
+# Sounds list name: path
+SOUNDS = {
+
 }
 
 class BOT(commands.Bot):
@@ -98,9 +103,9 @@ class BOT(commands.Bot):
         current_time = time.time()
         active_users = []
         for user in self.chat_data['users']:
-            if 'last_chatted' in self.chat_data['users'][user]:
-                if current_time - self.chat_data['users'][user]['last_chatted'] < HOUR:
-                    active_users.append(user)
+            last_chatted = self.chat_data['users'][user].get('last_chatted')
+            if last_chatted and current_time - last_chatted < HOUR and not self.chat_data['users'][user]['admin']:
+                active_users.append(user)
         return active_users if active_users else None
     
     def reward_all(self, amt):
@@ -110,11 +115,20 @@ class BOT(commands.Bot):
 
     def do_lottery(self):
         self.chat_data = self.load()
-        if self.chat_data['users'] and self.chat_cooldown('lottery', HOUR) or self.force_lottery:
+        if self.chat_data['users'] and (self.chat_cooldown('lottery', HOUR) or self.force_lottery):
             self.force_lottery = False
-            winner = random.choice(list(self.get_active())) if self.get_active() is not None else None
-            if winner is None:
+            active_members = self.get_active()
+            
+            if not active_members:
+                print("No active members for the lottery.")
                 return
+
+            try:
+                winner = random.choice(active_members)
+            except IndexError:
+                print("Error: No active members available for the lottery.")
+                return
+
             self.chat_data['users'][winner]['points'] += LOTTERY_REWARD
             self.save()
             print(f'Lottery: {winner} won {LOTTERY_REWARD}{POINTS}!')
@@ -134,6 +148,7 @@ class BOT(commands.Bot):
         current_time = time.time()
         for timer in self.chat_data['timers']:
             self.chat_data['timers'][timer] = current_time
+        self.save()
     
     def clean_username(self, username):
         return username[1:].lower() if username.startswith('@') else username.lower()
@@ -149,7 +164,6 @@ class BOT(commands.Bot):
         print(f'Login Successful!')
 
         self.reset_timers()
-        self.save()
         self.check_timers()
 
     async def event_message(self, message):
@@ -160,16 +174,13 @@ class BOT(commands.Bot):
         user = message.author.name
         self.chat_data = self.load()
 
-        # Update user data
         if user in self.chat_data['users']:
             self.chat_data['users'][user]['last_chatted'] = current_time
             self.chat_data['users'][user]['points'] += 1
             self.save()
 
-        # Get the color of the user if available (you might need to set this up)
-        color = message.author.color if message.author.color else "#FFFFFF"  # Default to white if no color is provided
+        color = message.author.color if message.author.color else '#FFFFFF'
 
-        # Append chat message to chat in chat_data.json with timestamps and color
         if user not in BLACKLIST and user in self.get_active():
             chat_entry = {
                 'user': user,
@@ -178,14 +189,11 @@ class BOT(commands.Bot):
                 'color': color
             }
 
-            # Append the chat entry to the chat list
             self.chat_data['chat'].append(chat_entry)
 
-            # Keep only the last 50 messages
             if len(self.chat_data['chat']) > 50:
                 self.chat_data['chat'] = self.chat_data['chat'][-50:]
 
-            # Save the updated chat data
             self.save()
 
         await self.handle_commands(message)
@@ -354,7 +362,7 @@ class BOT(commands.Bot):
             await ctx.send(f'Tickets must be an interger')
 
         if tickets is None or tickets <= 0:
-            await ctx.send(f"!quickticket <amt of tickets> (each ticket costs 100{POINTS})")
+            await ctx.send(f'!quickticket <amt of tickets> (each ticket costs 100{POINTS})')
             return
 
         value = tickets * price
@@ -374,11 +382,11 @@ class BOT(commands.Bot):
 
             net_result = total_winnings - value
             if net_result >= 0:
-                result_message = f"Gain: {net_result}{POINTS}"
+                result_message = f'Gain: {net_result}{POINTS}'
             else:
-                result_message = f"Loss: {abs(net_result)}{POINTS}"
+                result_message = f'Loss: {abs(net_result)}{POINTS}'
 
-            await ctx.send(f"{user} bought {tickets} {f'a quickticket' if tickets < 1 else f'quicktickets'} and won {total_winnings}{POINTS}! {result_message}")
+            await ctx.send(f'{user} bought {tickets} {f'a quickticket' if tickets < 1 else f'quicktickets'} and won {total_winnings}{POINTS}! {result_message}')
         self.save()
 
     #coinflip
@@ -526,6 +534,12 @@ class BOT(commands.Bot):
     async def join(self, ctx: commands.Context):
         user = ctx.author.name
         await ctx.send(f'{user} joined the game!')
+
+    @commands.command(name='sfx')
+    @verify_user
+    async def sfx(self, ctx: commands.Context, sound):
+        user = ctx.author.name
+        await ctx.send(f'{user}, played {sound}')
 
 
 if __name__ == '__main__':
